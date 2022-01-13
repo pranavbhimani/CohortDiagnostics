@@ -555,14 +555,14 @@ runCohortDiagnostics <- function(packageName = NULL,
   }
   
   # Store information from the vocabulary on the concepts used -------------------------
-  exportConceptInformation(
-    connection = connection,
-    cdmDatabaseSchema = cdmDatabaseSchema,
-    tempEmulationSchema = tempEmulationSchema,
-    conceptIdTable = "#concept_ids",
-    incremental = incremental,
-    exportFolder = exportFolder
-  )
+  # exportConceptInformation(
+  #   connection = connection,
+  #   cdmDatabaseSchema = cdmDatabaseSchema,
+  #   tempEmulationSchema = tempEmulationSchema,
+  #   conceptIdTable = "#concept_ids",
+  #   incremental = incremental,
+  #   exportFolder = exportFolder
+  # )
   
   # Delete unique concept ID table ---------------------------------
   ParallelLogger::logTrace("Deleting concept ID table")
