@@ -1,4 +1,4 @@
-# Copyright 2021 Observational Health Data Sciences and Informatics
+# Copyright 2022 Observational Health Data Sciences and Informatics
 #
 # This file is part of CohortDiagnostics
 #
@@ -57,8 +57,7 @@ getTimeDistributions <- function(connectionDetails = NULL,
       dplyr::select(
         -.data$conceptId,
         -.data$analysisId,
-        -.data$covariateId,
-        -.data$result$countValue
+        -.data$covariateId
       ) %>%
       dplyr::rename(timeMetric = .data$covariateName,
                     cohortId = .data$cohortDefinitionId) %>%
