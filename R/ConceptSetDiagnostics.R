@@ -977,6 +977,34 @@ getOrphanConcepts <- function(connectionDetails = NULL,
   if (length(codesetIds) == 0) {
     return(NULL)
   }
+  tempConceptTable <- paste0("#c_", gsub("[: -]", "", Sys.time(), perl = TRUE), sample(1:100, 1))
+  
+  DatabaseConnector::renderTranslateExecuteSql(
+    connection = connection,
+    sql = "
+    --HINT DISTRIBUTE_ON_KEY(concept_id)
+    SELECT DISTINCT concept_id, concept_name
+    INTO @temp_concept_table
+    FROM
+    (
+      SELECT concept_id, concept_name
+      FROM @vocabulary_database_schema.concept
+      WHERE invalid_reason IS NULL
+      
+      UNION
+      
+      SELECT concept_id, concept_synonym_name concept_name
+      FROM @vocabulary_database_schema.concept_synonym
+    )
+    WHERE concept_id != 0
+            {@keep_custom_concept_id} ? {} : {AND concept_id < 200000000};",
+    temp_concept_table = tempConceptTable,
+    vocabulary_database_schema = vocabularyDatabaseSchema,
+    keep_custom_concept_id = keep2BillionConceptId,
+    profile = FALSE, 
+    progressBar = FALSE, 
+    reportOverallTime = TRUE
+  )
   for (i in (1:length(codesetIds))) {
       ParallelLogger::logInfo(paste0("  - ", 
                                       scales::comma(i),
@@ -997,58 +1025,34 @@ getOrphanConcepts <- function(connectionDetails = NULL,
     if (length(searchStrings) > 0) {
       sql1 <- "INSERT INTO #orphan_concept_table
               SELECT DISTINCT @codeset_id codeset_id,
-              	f.concept_id
-              FROM (
-              	SELECT DISTINCT
-              		c1.concept_id
-              	FROM @vocabulary_database_schema.concept c1
+              	concept_id
+              FROM @temp_concept_table c1
               	WHERE ("
       sql2 <-
         paste0(
           paste0(
-            "LOWER(c1.concept_name) LIKE CONCAT ('%', '",
+            "LOWER(concept_name) LIKE CONCAT ('%', '",
             searchStrings,
             "' , '%') "
           ),
           collapse = "OR
               			"
         )
-      sql3 <- ") AND c1.invalid_reason IS NULL
-
-              	UNION
-
-              	SELECT DISTINCT
-              		cs.concept_id
-              	FROM @vocabulary_database_schema.concept_synonym cs
-              	WHERE ("
-      sql4 <-
-        paste0(
-          paste0(
-            "LOWER(concept_synonym_name) LIKE CONCAT ('%', '",
-            searchStrings,
-            "' , '%') "
-          ),
-          collapse = "OR
-              			"
-        )
-      sql5 <- ")
-              ) f
-                WHERE concept_id NOT IN
+      sql3 <- ") AND concept_id NOT IN
                 (
               	SELECT DISTINCT concept_id
               	FROM #starting_concepts
               	WHERE codeset_id = @codeset_id
               	);"
-      
-      sql <- paste0(sql1, sql2, sql3, sql4, sql5)
+      sql <- paste0(sql1, sql2, sql3)
       DatabaseConnector::renderTranslateExecuteSql(
         connection = connection,
         sql = sql,
         profile = FALSE,
         progressBar = FALSE,
-        reportOverallTime = FALSE,
+        reportOverallTime = TRUE,
         tempEmulationSchema = tempEmulationSchema,
-        vocabulary_database_schema = vocabularyDatabaseSchema,
+        temp_concept_table = tempConceptTable,
         codeset_id = searchStringData$codesetId[[i]]
       )
     }
