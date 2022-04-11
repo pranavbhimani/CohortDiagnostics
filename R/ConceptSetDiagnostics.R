@@ -995,7 +995,7 @@ getOrphanConcepts <- function(connectionDetails = NULL,
       
       SELECT concept_id, concept_synonym_name concept_name
       FROM @vocabulary_database_schema.concept_synonym
-    )
+    ) f
     WHERE concept_id != 0
             {@keep_custom_concept_id} ? {} : {AND concept_id < 200000000};",
     temp_concept_table = tempConceptTable,
@@ -1041,7 +1041,7 @@ getOrphanConcepts <- function(connectionDetails = NULL,
       sql3 <- ") AND concept_id NOT IN
                 (
               	SELECT DISTINCT concept_id
-              	FROM #starting_concepts
+              	FROM #starting_concepts sc
               	WHERE codeset_id = @codeset_id
               	);"
       sql <- paste0(sql1, sql2, sql3)
