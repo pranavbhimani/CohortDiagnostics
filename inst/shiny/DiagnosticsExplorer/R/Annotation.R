@@ -136,7 +136,6 @@ annotationModule <- function(id,
   annotationServer <- function(input, output, session) {
     # Annotation Section ------------------------------------
     ## posting annotation enabled ------
-
     output$postAnnoataionEnabled <- shiny::reactive(postAnnoataionEnabled())
     outputOptions(output, "postAnnoataionEnabled", suspendWhenHidden = FALSE)
 
@@ -328,7 +327,6 @@ annotationModule <- function(id,
 
 
 postAnnotationResult <- function(dataSource,
-                                 resultsDatabaseSchema,
                                  diagnosticsId,
                                  cohortIds,
                                  databaseIds,
@@ -362,7 +360,7 @@ postAnnotationResult <- function(dataSource,
   tryCatch(
   {
     renderTranslateExecuteSql(
-      connection = dataSource$connection,
+      dataSource = dataSource,
       sql = sqlInsert,
       results_database_schema = dataSource$resultsDatabaseSchema,
       annotation = annotation,
