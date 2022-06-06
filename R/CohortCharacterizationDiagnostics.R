@@ -105,6 +105,7 @@ getCohortCharacteristics <- function(connectionDetails = NULL,
 
       if (FeatureExtraction::isTemporalCovariateData(featureExtractionOutput)) {
         covariates <- covariates %>%
+          dplyr::mutate(timeId = ifelse(is.na(.data$timeId), 0, .data$timeId)) %>%
           dplyr::select(
             .data$cohortId,
             .data$timeId,
@@ -115,6 +116,7 @@ getCohortCharacteristics <- function(connectionDetails = NULL,
           )
       } else {
         covariates <- covariates %>%
+          dplyr::mutate(timeId = 0) %>%
           dplyr::select(
             .data$cohortId,
             .data$covariateId,
@@ -141,7 +143,10 @@ getCohortCharacteristics <- function(connectionDetails = NULL,
       covariatesContinuous <- covariates
       if (FeatureExtraction::isTemporalCovariateData(featureExtractionOutput)) {
         covariates <- covariates %>%
-          dplyr::mutate(sumValue = -1) %>%
+          dplyr::mutate(
+            sumValue = -1,
+            timeId = ifelse(is.na(.data$timeId), 0, .data$timeId)
+          ) %>%
           dplyr::select(
             .data$cohortId,
             .data$timeId,
@@ -152,7 +157,8 @@ getCohortCharacteristics <- function(connectionDetails = NULL,
           )
       } else {
         covariates <- covariates %>%
-          dplyr::mutate(sumValue = -1) %>%
+          dplyr::mutate(sumValue = -1,
+                        timeId = 0) %>%
           dplyr::select(
             .data$cohortId,
             .data$covariateId,
