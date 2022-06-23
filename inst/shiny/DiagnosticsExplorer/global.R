@@ -24,6 +24,7 @@ source("R/OrphanConceptsModule.R")
 source("R/TemporalCharacterizationModule.R")
 source("R/TimeDistributionsModule.R")
 source("R/VisitContextModule.R")
+source("R/ReportModule.R")
 
 appVersionNum <- "Version: 3.0.1"
 

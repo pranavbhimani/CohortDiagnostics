@@ -24,6 +24,7 @@ uiControls <- function(databaseTable,
       input.tabs != 'orphanConcepts' &
       input.tabs != 'inclusionRuleStats' &
       input.tabs != 'visitContext' &
+      input.tabs != 'report' &
       input.tabs != 'cohortOverlap'",
       ns = ns,
       shinyWidgets::pickerInput(
@@ -104,6 +105,7 @@ uiControls <- function(databaseTable,
       input.tabs != 'cohortCounts' &
       input.tabs != 'cohortOverlap'&
       input.tabs != 'incidenceRate' &
+      input.tabs != 'report' &
       input.tabs != 'timeDistribution'",
       ns = ns,
       shinyWidgets::pickerInput(
@@ -338,6 +340,7 @@ dashboardUi <- function(databaseTable,
         )
       },
       shinydashboard::menuItem(text = "Meta data", tabName = "databaseInformation"),
+      shinydashboard::menuItem(text = "Export Report", tabName = "report"),
       # Conditional dropdown boxes in the side bar ------------------------------------------------------
       uiControls(databaseTable,
                  ns,
@@ -507,6 +510,10 @@ dashboardUi <- function(databaseTable,
     shinydashboard::tabItem(
       tabName = "databaseInformation",
       databaseInformationView(ns("databaseInformation")),
+    ),
+    shinydashboard::tabItem(
+      tabName = "report",
+      reportModuleUi(ns("report"))
     )
   )
 
@@ -604,6 +611,8 @@ tabularUi <- function(databaseTable,
           },
           shiny::tabPanel("Database Information", databaseInformationView(ns("databaseInformation")),
                           value = "databaseInformation"),
+
+          shiny::tabPanel("Report", reportModuleUi(ns("report")), value = "report"),
           type = "pills",
           id = ns("tabs")
         ),

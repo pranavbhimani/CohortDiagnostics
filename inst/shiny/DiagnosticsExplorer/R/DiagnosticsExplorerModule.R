@@ -788,6 +788,12 @@ diagnosticsExplorerModule <- function(id = "DiagnosticsExplorer",
                               selectedDatabaseIds = selectedDatabaseIds,
                               databaseTable = databaseTable)
 
+    reportModule(id = "report",
+                 dataSource = dataSource,
+                 cohortTable = cohortTable,
+                 databaseTable = databaseTable,
+                 enabledTabs = enabledTabs)
+
   })
 
 }
