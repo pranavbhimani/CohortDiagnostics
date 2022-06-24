@@ -1,6 +1,6 @@
 ---
 params:
-  author: ""
+  author: "Author Name 1, Author Name 2"
   title: "Cohort Diagnostics Report"
   reportDescription: ""
   sections: ""
@@ -11,11 +11,10 @@ params:
 title: "``r params$title``"
 
 ---
-
 # Project Details
 Prepared on: ``r Sys.Date()``
 
-Author(s): ``r params$authors``
+Author(s): ``r params$author``
 
 
 # Abbreviations
@@ -35,12 +34,6 @@ abb <- abb[order(abb$Abbreviation),]
 knitr::kable(x = abb, caption = 'List of Abbreviations')
 
 ```
+# Project Description
 
-# Executive Summary
-
-<< A few statements about the rational and background for this study. >>
-
-
-# Rational & Background
-
-<< Provide a short description of the reason that led to the initiation of or need for the study and add a short critical review of available published and unpublished data to explain gaps in knowledge that the study is intended to fill. >>
+``r params$reportDescription``

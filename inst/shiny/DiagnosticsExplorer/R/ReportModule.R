@@ -112,19 +112,22 @@ reportModule <- function(id,
       availableSection <- tibble::tibble(
         section = c("Project Description",
                     "Cohort Definitions",
+                    "Concept Set Definitions",
                     "Time Distributions",
-                    "cohort counts",
+                    "Cohort Counts",
                     "Incidence",
                     "Overlap",
                     "Characterization"),
         description = c("Above description box contents",
                         "Full, human readable definitions of cohorts",
+                        "Cohort concept set tables",
                         "Distributions of ",
                         "Counts",
                         "Incidence Proportions For cohorts",
                         "Overlap between selected cohorts",
                         "Cohort Characterization table"),
         tabId = c("projectDescriptions",
+                  "cohort",
                   "cohort",
                   "temporalCovariateValue",
                   "cohortCount",
@@ -199,7 +202,7 @@ reportModule <- function(id,
                           ),
                           output_file = file,
                           envir = parent.frame(),
-                          params = reportOptions())
+                          params = params)
       }
     )
   })
