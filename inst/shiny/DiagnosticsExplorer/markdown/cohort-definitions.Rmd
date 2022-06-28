@@ -1,0 +1,20 @@
+
+```{r echo = FALSE, results='asis'}
+if ("cohortDefinitions" %in% params$sections$id) {
+  cat("# Cohort Definitions\n")
+  for (i in 1:nrow(params$cohortTable)) {
+    cat(paste0("## ", params$cohortTable[i,]$cohortName, "\n"))
+    cohortJson <- params$cohortTable[i,]$json
+    markdown <- CirceR::cohortPrintFriendly(cohortJson)
+    cat(markdown)
+
+    if ("conceptSetDefinitions" %in% params$sections$id) {
+      expression <- CirceR::cohortExpressionFromJson(expressionJson = cohortJson)
+      circeConceptSetListmarkdown <- CirceR::conceptSetListPrintFriendly(expression$conceptSets)
+      circeConceptSetListmarkdown <- gsub("###", "####", circeConceptSetListmarkdown)
+      cat("### Concept sets\n")
+      cat(circeConceptSetListmarkdown)
+    }
+  }
+}
+```

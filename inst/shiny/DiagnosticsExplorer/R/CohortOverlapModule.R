@@ -1,7 +1,8 @@
 ### cohort overlap plot ##############
 plotCohortOverlap <- function(data,
                               shortNameRef = NULL,
-                              yAxis = "Percentages") {
+                              yAxis = "Percentages",
+                              interactive = TRUE) {
   data <- data %>%
     addShortName(
       shortNameRef = shortNameRef,
@@ -31,8 +32,8 @@ plotCohortOverlap <- function(data,
         " (",
         .data$signTOnlySubjects,
         scales::percent(.data$absTOnlySubjects /
-          .data$absEitherSubjects,
-        accuracy = 1
+                          .data$absEitherSubjects,
+                        accuracy = 1
         ),
         ")"
       ),
@@ -42,8 +43,8 @@ plotCohortOverlap <- function(data,
         " (",
         .data$signCOnlySubjects,
         scales::percent(.data$absCOnlySubjects /
-          .data$absEitherSubjects,
-        accuracy = 1
+                          .data$absEitherSubjects,
+                        accuracy = 1
         ),
         ")"
       ),
@@ -53,8 +54,8 @@ plotCohortOverlap <- function(data,
         " (",
         .data$signBothSubjects,
         scales::percent(.data$absBothSubjects /
-          .data$absEitherSubjects,
-        accuracy = 1
+                          .data$absEitherSubjects,
+                        accuracy = 1
         ),
         ")"
       )
@@ -140,12 +141,12 @@ plotCohortOverlap <- function(data,
     )
 
   plotData$targetShortName <- factor(plotData$targetShortName,
-    levels = sortTargetShortName$targetShortName
+                                     levels = sortTargetShortName$targetShortName
   )
 
   plotData$comparatorShortName <-
     factor(plotData$comparatorShortName,
-      levels = sortComparatorShortName$comparatorShortName
+           levels = sortComparatorShortName$comparatorShortName
     )
 
   plot <- ggplot2::ggplot(data = plotData) +
@@ -166,12 +167,18 @@ plotCohortOverlap <- function(data,
       panel.grid.major.x = ggplot2::element_line(color = "gray"),
       axis.ticks.y = ggplot2::element_blank(),
       panel.spacing = ggplot2::unit(2, "lines")
-    ) +
-    ggiraph::geom_bar_interactive(
-      position = position,
-      alpha = 0.6,
-      stat = "identity"
     )
+
+  if (interactive) {
+    plot <- plot +
+      ggiraph::geom_bar_interactive(
+        position = position,
+        alpha = 0.6,
+        stat = "identity"
+      )
+  } else {
+    plot <- plot + ggplot2::geom_bar(position = position, stat = "identity")
+  }
   if (yAxis == "Percentages") {
     plot <- plot + ggplot2::scale_x_continuous(labels = scales::percent)
   } else {
@@ -181,14 +188,18 @@ plotCohortOverlap <- function(data,
   width <- length(unique(plotData$databaseId))
   height <-
     nrow(
-      plotData %>% dplyr::select(.data$targetShortName, .data$comparatorShortName) %>% dplyr::distinct()
+      plotData %>%
+        dplyr::select(.data$targetShortName, .data$comparatorShortName) %>%
+        dplyr::distinct()
     )
-  plot <- ggiraph::girafe(
-    ggobj = plot,
-    options = list(ggiraph::opts_sizing(rescale = TRUE)),
-    width_svg = max(12, 2 * width),
-    height_svg = max(2, 0.5 * height)
-  )
+  if (interactive) {
+    plot <- ggiraph::girafe(
+      ggobj = plot,
+      options = list(ggiraph::opts_sizing(rescale = TRUE)),
+      width_svg = max(12, 2 * width),
+      height_svg = max(2, 0.5 * height)
+    )
+  }
   return(plot)
 }
 

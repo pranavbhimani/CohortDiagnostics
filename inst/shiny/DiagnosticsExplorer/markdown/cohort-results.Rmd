@@ -1,0 +1,46 @@
+```{r echo=FALSE, results='asis'}
+if ("overlap" %in% params$sections$id & !is.null(params$overlapData)) {
+  cat("# Cohort overlap\n")
+
+  caption <- "Percentage overlap for cohorts"
+
+  for (i in 1:nrow(params$databasesSelected)) {
+    db <- params$databasesSelected[i,]
+    cat("### ", db$databaseName, "\n\n")
+    pltDt <- params$overlapData %>% dplyr::filter(.data$databaseId == db$databaseId)
+
+    if (nrow(pltDt) == 0) {
+      cat("No overlap data computed for database", "\n\n")
+    } else {
+      cat(knitr::knit_child("overlap-plot-out.Rmd"))
+    }
+  }
+}
+```
+
+```{r echo=FALSE, results='asis'}
+if ("characterization" %in% params$sections$id) {
+  cat("# Characterization results\n")
+
+
+  for (i in 1:nrow(params$cohortTable)) {
+    cohort <- params$cohortTable[i,]
+    cat("## ", cohort$cohortName, "\n\n")
+    for (j in 1:nrow(params$databasesSelected)) {
+      db <- params$databasesSelected[j,]
+      cat("#### ", db$databaseName, "\n\n")
+
+      data <- getCharacterizationOutput(
+          dataSource = params$dataSource,
+          cohortIds = cohort$cohortId,
+          databaseIds = db$databaseId,
+          temporalCovariateValueDist = FALSE
+        )
+
+      #data <- prepareTable1(data, prettyTable1Specifications = params$prettyTable1Specifications, cohort = params$cohortTable)
+      #cat(knitr::knit_child("characterization-table.Rmd"))
+    }
+  }
+
+}
+```

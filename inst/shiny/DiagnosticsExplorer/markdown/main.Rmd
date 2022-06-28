@@ -2,24 +2,36 @@
 params:
   author: "Author Name 1, Author Name 2"
   title: "Cohort Diagnostics Report"
-  reportDescription: ""
-  sections: ""
-  cohortsSelected : ""
-  databasesSelected: ""
-  outputType: ""
+  reportDescription: ~
+  sections: ~
+  cohortTable : ~
+  databasesSelected: ~
+  outputType: ~
+  overlapData: ~
+  dataSource: ~
+  prettyTable1Specifications: ~
 
-title: "``r params$title``"
-
+title: "`r params$title`"
+date: "`r Sys.Date()`"
+author: "`r params$author`"
 ---
-# Project Details
-Prepared on: ``r Sys.Date()``
+```{r, echo = FALSE, message = FALSE, results = "hide"}
 
-Author(s): ``r params$author``
+lapply(file.path("../R", list.files("../R", pattern = "*.R")), source)
+```
+
+
+
+# Project Details
+Prepared on: `r Sys.Date()`
+
+Author(s): `r params$author`
 
 
 # Abbreviations
 
 ```{r echo=FALSE}
+
 abb <- data.frame(rbind(
     c("CDM","Common Data Model"),
     c("O","Outcome Cohort"),
@@ -35,5 +47,20 @@ knitr::kable(x = abb, caption = 'List of Abbreviations')
 
 ```
 # Project Description
+`r params$reportDescription`
 
-``r params$reportDescription``
+# Protection of Human Subjects
+
+Confidentiality of patient records will be maintained always. All results reported contain aggregate data only and will not identify individual patients or physicians. At no time during the study will the sponsor receive patient identifying information except when it is required by regulations in case of reporting adverse events.
+
+# Data sources
+```{r echo = FALSE}
+cdms <- params$databasesSelected %>% dplyr::select(.data$databaseId, .data$databaseName, .data$description)
+knitr::kable(x = cdms, caption = 'List of data sources used in this study.')
+```
+
+
+```{r child=c("cohort-definitions.Rmd")}
+```
+```{r, child=c("cohort-results.Rmd")}
+```

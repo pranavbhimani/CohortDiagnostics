@@ -1,9 +1,3 @@
-createReport <- function(params,
-                         rmdPath) {
-
-}
-
-
 #' Report module UI
 #' @description
 #' Create protocol document from cohort diagnostics data.
@@ -90,11 +84,15 @@ reportModule <- function(id,
         return(displayTable)
       })
 
+    getDatabases <- shiny::reactive({
+      databaseTable %>%
+        dplyr::select(.data$databaseId, .data$databaseName, .data$description) %>%
+        unique()
+    })
+
     output$databaseTable <-
       reactable::renderReactable(expr = {
-        data <- databaseTable %>%
-          dplyr::select(.data$databaseId, .data$databaseName, .data$description) %>%
-          unique()
+        data <- getDatabases()
 
         keyColumns <- c("databaseId", "databaseName", "description")
 
@@ -110,6 +108,14 @@ reportModule <- function(id,
 
     getAvailableSections <- shiny::reactive({
       availableSection <- tibble::tibble(
+        id = c("projectDescription",
+               "cohortDefinitions",
+               "conceptSetDefinitions",
+               "timeDistributions",
+               "cohortCounts",
+               "incidence",
+               "overlap",
+               "characterization"),
         section = c("Project Description",
                     "Cohort Definitions",
                     "Concept Set Definitions",
@@ -125,7 +131,7 @@ reportModule <- function(id,
                         "Counts",
                         "Incidence Proportions For cohorts",
                         "Overlap between selected cohorts",
-                        "Cohort Characterization table"),
+                        "Cohort Characterization tables"),
         tabId = c("projectDescriptions",
                   "cohort",
                   "cohort",
@@ -158,23 +164,39 @@ reportModule <- function(id,
       })
 
 
-    reportOptions <- shiny::reactive({
-                                          #' Get selected reactable indexes
+    reportParams <- shiny::reactive({
+      # Get selected reactable indexes
       selectedCohorts <- reactable::getReactableState("cohortDefinitionTable")$selected
       selectedDatabases <- reactable::getReactableState("databaseTable")$selected
       selectedSections <- reactable::getReactableState("includedSections")$selected
 
-      return(
-        list(
-          outputType = input$outputFormat,
-          author = input$authors,
-          title = input$title,
-          reportDescription = input$reportDescription,
-          sections = getAvailableSections()[selectedSections,],
-          cohortsSelected = getCohortTable()[selectedCohorts,],
-          databasesSelected = databaseTable[selectedDatabases,]
-        )
+      # Sections included in report
+      selectedCohorts <- cohortTable[selectedCohorts,]
+      selectedDatabases <- getDatabases()[selectedDatabases,]
+      sections <- getAvailableSections()[selectedSections,]
+
+      result <- list(
+        outputType = input$outputFormat,
+        author = input$authors,
+        title = input$title,
+        reportDescription = input$reportDescription,
+        sections = sections,
+        cohortTable = selectedCohorts,
+        databasesSelected = selectedDatabases,
+        prettyTable1Specifications = prettyTable1Specifications,
+        dataSource = dataSource
       )
+
+      if ("overlap" %in% sections$id) {
+        result$overlapData <- getResultsCohortOverlap(
+          dataSource = dataSource,
+          targetCohortIds = cohortTable$cohortId,
+          comparatorCohortIds = selectedCohorts$cohortId,
+          databaseIds = selectedDatabases$databaseId
+        )
+      }
+
+      return(result)
     })
 
     output$render <- shiny::downloadHandler(
@@ -186,23 +208,30 @@ reportModule <- function(id,
       },
 
       content = function(file) {
-        src <- normalizePath('markdown/main.Rmd')
-        params <- reportOptions()
+        progress <- shiny::Progress$new()
+        on.exit(progress$close())
+        progress$set(message = "Generating report output (may take some time)", value = 0)
 
+        src <- normalizePath('markdown/main.Rmd')
+        params <- reportParams()
         # temporarily switch to the temp dir, in case you do not have write
         # permission to the current working directory
         owd <- setwd(tempdir())
-        on.exit(setwd(owd))
-        rmarkdown::render(src,
-                          output_format = switch(
-                            input$outputFormat,
-                            pdf_document = rmarkdown::pdf_document(toc = TRUE, toc_depth = 2),
-                            html_document = rmarkdown::html_document(toc = TRUE, toc_depth = 2),
-                            word_document = rmarkdown::word_document(toc = TRUE, toc_depth = 2)
-                          ),
-                          output_file = file,
-                          envir = parent.frame(),
-                          params = params)
+        on.exit(setwd(owd), add = TRUE)
+        rmarkdown::render(
+          src,
+          output_format = switch(
+            input$outputFormat,
+            pdf_document = rmarkdown::pdf_document(toc = TRUE, toc_depth = 2),
+            html_document = rmarkdown::html_document(toc = TRUE, toc_depth = 2),
+            word_document = rmarkdown::word_document(toc = TRUE, toc_depth = 2)
+          ),
+          output_file = file,
+          quiet = TRUE,
+          envir = new.env(),
+          params = params
+        )
+
       }
     )
   })

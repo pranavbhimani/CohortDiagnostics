@@ -1,0 +1,10 @@
+```{r, fig.cap = caption, echo = FALSE, dev='png', fig.height=4, fig.width=8}
+plotCohortOverlap(data = pltDt, shortNameRef = params$cohortTable, interactive = FALSE)
+cat("\n\n")
+```
+
+```{r echo=FALSE}
+
+shortNameTable <- params$cohortTable %>% dplyr::select(.data$shortName, .data$cohortName)
+knitr::kable(x = shortNameTable, caption = 'Cohort names', col.names = c("id", "Cohort Name"))
+```

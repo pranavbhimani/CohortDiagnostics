@@ -1,0 +1,5 @@
+
+```{r echo=FALSE}
+
+knitr::kable(x = data, caption = 'cohort characterization')
+```
