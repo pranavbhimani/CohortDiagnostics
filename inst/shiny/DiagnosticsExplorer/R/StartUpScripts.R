@@ -15,22 +15,24 @@
 # limitations under the License.
 
 
-loadResultsTable <- function(dataSource, tableName, required = FALSE) {
+loadResultsTable <- function(dataSource, tableName, required = FALSE, tablePrefix = "") {
+  selectTableName <- paste0(tablePrefix, tableName)
+
   resultsTablesOnServer <-
     tolower(DatabaseConnector::dbListTables(dataSource$connection, schema = dataSource$resultsDatabaseSchema))
 
-  if (required || tableName %in% resultsTablesOnServer) {
+  if (required || selectTableName %in% resultsTablesOnServer) {
     tryCatch(
     {
       table <- DatabaseConnector::dbReadTable(
         dataSource$connection,
-        paste(dataSource$resultsDatabaseSchema, tableName, sep = ".")
+        paste(dataSource$resultsDatabaseSchema, selectTableName, sep = ".")
       )
     },
       error = function(err) {
         stop(
           "Error reading from ",
-          paste(dataSource$resultsDatabaseSchema, tableName, sep = "."),
+          paste(dataSource$resultsDatabaseSchema, selectTableName, sep = "."),
           ": ",
           err$message
         )
@@ -185,7 +187,6 @@ getConnectionPool <- function(connectionDetails) {
 }
 
 loadShinySettings <- function(configPath) {
-  writeLines("Using settings provided by user")
   stopifnot(file.exists(configPath))
   shinySettings <- yaml::read_yaml(configPath)
 
@@ -194,7 +195,10 @@ loadShinySettings <- function(configPath) {
     vocabularyDatabaseSchemas = c("main"),
     enableAnnotation = TRUE,
     enableAuthorization = TRUE,
-    userCredentialsFile = "UserCredentials.csv"
+    userCredentialsFile = "UserCredentials.csv",
+    tablePrefix = "",
+    cohortTableName = "cohort",
+    databaseTableName = "database"
   )
 
   for (key in names(defaultValues)) {
@@ -202,6 +206,15 @@ loadShinySettings <- function(configPath) {
       shinySettings[[key]] <- defaultValues[[key]]
     }
   }
+
+  if (shinySettings$cohortTableName == "cohort") {
+    shinySettings$cohortTableName <- paste0(shinySettings$tablePrefix, shinySettings$cohortTableName)
+  }
+
+  if (shinySettings$databaseTableName == "database") {
+    shinySettings$databaseTableName <- paste0(shinySettings$tablePrefix, shinySettings$databaseTableName)
+  }
+
 
   if (!is.null(shinySettings$connectionDetailsSecureKey)) {
     shinySettings$connectionDetails <- jsonlite::fromJSON(keyring::key_get(shinySettings$connectionDetailsSecureKey))
@@ -215,24 +228,74 @@ loadShinySettings <- function(configPath) {
 createDatabaseDataSource <- function(connection,
                                      resultsDatabaseSchema,
                                      vocabularyDatabaseSchema = resultsDatabaseSchema,
-                                     dbms) {
+                                     dbms,
+                                     tablePrefix = "",
+                                     cohortTableName = "cohort",
+                                     databaseTableName = "database") {
   return(
     list(
       connection = connection,
       resultsDatabaseSchema = resultsDatabaseSchema,
       vocabularyDatabaseSchema = vocabularyDatabaseSchema,
       dbms = dbms,
-      resultsTablesOnServer = tolower(DatabaseConnector::dbListTables(connection, schema = resultsDatabaseSchema))
+      resultsTablesOnServer = tolower(DatabaseConnector::dbListTables(connection, schema = resultsDatabaseSchema)),
+      tablePrefix = tablePrefix,
+      prefixTable = function(tableName) { paste0(tablePrefix, tableName) },
+      prefixVocabTable = function(tableName) {
+        # don't prexfix table if we us a dedicated vocabulary schema
+        if (vocabularyDatabaseSchema == resultsDatabaseSchema)
+          return(paste0(tablePrefix, tableName))
+
+        return(tableName)
+      },
+      cohortTableName = cohortTableName,
+      databaseTableName = databaseTableName
     )
   )
 }
 
 #' Initialize variables required in applications global shared environment
 #' These settings are shared accross settings (e.g. accessed by all users) and should be read only during run time
-initializeEnvironment <- function(dataSource,
-                                  dataModelSpecifications = read.csv("data/resultsDataModelSpecification.csv"),
+initializeEnvironment <- function(shinySettings,
+                                  table1SpecPath = "data/Table1SpecsLong.csv",
+                                  dataModelSpecificationsPath = "data/resultsDataModelSpecification.csv",
                                   envir = .GlobalEnv) {
 
+  envir$shinySettings <- shinySettings
+  envir$connectionPool <- envir$getConnectionPool(envir$shinySettings$connectionDetails)
+  shiny::onStop(function() {
+    if (DBI::dbIsValid(envir$connectionPool)) {
+      writeLines("Closing database pool")
+      pool::poolClose(envir$connectionPool)
+    }
+  })
+
+  envir$dataSource <-
+    envir$createDatabaseDataSource(
+      connection = envir$connectionPool,
+      resultsDatabaseSchema = envir$shinySettings$resultsDatabaseSchema,
+      vocabularyDatabaseSchema = envir$
+        shinySettings$
+        vocabularyDatabaseSchemas,
+      dbms = envir$shinySettings$connectionDetails$dbms,
+      tablePrefix = envir$shinySettings$tablePrefix,
+      cohortTableName = envir$shinySettings$cohortTableName,
+      databaseTableName = envir$shinySettings$databaseTableName
+    )
+
+  envir$userCredentials <- data.frame()
+  if (envir$enableAuthorization & !is.null(envir$shinySettings$userCredentialsFile)) {
+    if (file.exists(envir$shinySettings$userCredentialsFile)) {
+      envir$userCredentials <-
+        readr::read_csv(file = envir$shinySettings$userCredentialsFile, col_types = readr::cols())
+    }
+  }
+
+  if (nrow(envir$userCredentials) == 0) {
+    envir$enableAuthorization <- FALSE
+  }
+
+  dataModelSpecifications <- read.csv(dataModelSpecificationsPath)
   envir$dataModelSpecifications <- dataModelSpecifications
   # Cleaning up any tables alreadu in memory:
   suppressWarnings(rm(
@@ -240,17 +303,31 @@ initializeEnvironment <- function(dataSource,
     envir = envir
   ))
 
-  envir$database <- loadResultsTable(dataSource, "database", required = TRUE)
-  envir$cohort <- loadResultsTable(dataSource, "cohort", required = TRUE)
-  envir$metadata <- loadResultsTable(dataSource, "metadata", required = TRUE)
-  envir$temporalTimeRef <- loadResultsTable(dataSource, "temporal_time_ref")
-  envir$temporalAnalysisRef <- loadResultsTable(dataSource, "temporal_analysis_ref")
-  envir$conceptSets <- loadResultsTable(dataSource, "concept_sets")
-  envir$cohortCount <- loadResultsTable(dataSource, "cohort_count", required = TRUE)
-  envir$relationship <- loadResultsTable(dataSource, "relationship")
+  envir$database <- loadResultsTable(envir$dataSource, envir$dataSource$databaseTableName, required = TRUE)
+  envir$cohort <- loadResultsTable(envir$dataSource, envir$dataSource$cohortTableName, required = TRUE)
+  envir$metadata <- loadResultsTable(envir$dataSource, "metadata", required = TRUE, tablePrefix = envir$dataSource$tablePrefix)
+  envir$temporalTimeRef <- loadResultsTable(envir$dataSource, "temporal_time_ref", tablePrefix = envir$dataSource$tablePrefix)
+  envir$temporalAnalysisRef <- loadResultsTable(envir$dataSource, "temporal_analysis_ref", tablePrefix = envir$dataSource$tablePrefix)
+  envir$conceptSets <- loadResultsTable(envir$dataSource, "concept_sets", tablePrefix = envir$dataSource$tablePrefix)
+  envir$cohortCount <- loadResultsTable(envir$dataSource, "cohort_count", required = TRUE, tablePrefix = envir$dataSource$tablePrefix)
+  envir$relationship <- loadResultsTable(envir$dataSource, "relationship", tablePrefix = envir$dataSource$tablePrefix)
+
+
+  if (is.numeric(envir$database$databaseId)) {
+    envir$metadata$databaseId <- as.numeric(envir$metadata$databaseId)
+  }
 
   if (!is.null(envir$cohort)) {
-    envir$cohort <- cohort %>%
+    if ("cohortDefinitionId" %in% names(envir$cohort)) {
+      envir$cohort <- envir$cohort %>% dplyr::mutate(cohortId = .data$cohortDefinitionId)
+
+      ## Note this is because the tables were labled wrong!
+      envir$cohort <- envir$cohort %>% dplyr::mutate(cohortId = .data$cohortDefinitionId,
+                                                     sql = .data$json,
+                                                     json = .data$sqlCommand)
+    }
+
+    envir$cohort <- envir$cohort %>%
       dplyr::arrange(.data$cohortId) %>%
       dplyr::mutate(shortName = paste0("C", .data$cohortId)) %>%
       dplyr::mutate(compoundName = paste0(.data$shortName, ": ", .data$cohortName))
@@ -266,7 +343,7 @@ initializeEnvironment <- function(dataSource,
     }
 
     envir$databaseMetadata <- processMetadata(envir$metadata)
-    envir$database <- database %>%
+    envir$database <- envir$database %>%
       dplyr::distinct() %>%
       dplyr::mutate(id = dplyr::row_number()) %>%
       dplyr::mutate(shortName = paste0("D", .data$id)) %>%
@@ -274,12 +351,25 @@ initializeEnvironment <- function(dataSource,
                        by = "databaseId"
       ) %>%
       dplyr::relocate(.data$id, .data$databaseId, .data$shortName)
+
+
+    if ("databaseName" %in% names(envir$database)) {
+      envir$dbMapping <- envir$database %>%
+        dplyr::select(.data$databaseId, .data$databaseName) %>%
+        dplyr::distinct()
+    } else {
+      envir$dbMapping <- envir$database %>%
+        dplyr::select(.data$databaseId, .data$cdmSourceName) %>%
+        dplyr::distinct() %>%
+        dplyr::mutate(databaseName = .data$cdmSourceName)
+    }
   }
 
   envir$temporalChoices <- NULL
   envir$temporalCharacterizationTimeIdChoices <- NULL
+
   if (!is.null(envir$temporalTimeRef)) {
-    envir$temporalChoices <- getResultsTemporalTimeRef(dataSource = dataSource)
+    envir$temporalChoices <- getResultsTemporalTimeRef(dataSource = envir$dataSource)
     envir$temporalCharacterizationTimeIdChoices <- envir$temporalChoices %>%
       dplyr::arrange(.data$sequence)
 
@@ -316,15 +406,22 @@ initializeEnvironment <- function(dataSource,
   envir$resultsTables <- tolower(DatabaseConnector::dbListTables(dataSource$connection,
                                                                  schema = dataSource$resultsDatabaseSchema))
   envir$enabledTabs <- c()
-  for (table in c(envir$dataModelSpecifications$tableName)) {
-    if (table %in% resultsTables &
-      !tableIsEmpty(dataSource, table)) {
-      envir$enabledTabs <- c(envir$enabledTabs, SqlRender::snakeCaseToCamelCase(table))
+  for (table in envir$dataModelSpecifications$tableName %>% unique()) {
+    if (envir$dataSource$prefixTable(table) %in% envir$resultsTables) {
+      if (!tableIsEmpty(envir$dataSource, envir$dataSource$prefixTable(table))) {
+        envir$enabledTabs <- c(envir$enabledTabs, SqlRender::snakeCaseToCamelCase(table))
+      }
     }
   }
 
+  if (!(envir$dataSource$cohortTableName %in% envir$resultsTables & envir$dataSource$databaseTableName %in% envir$resultsTables)) {
+    stop(paste("cohort table:", envir$dataSource$cohortTableName, "and database table:", envir$dataSource$databaseTableName, "must be in results schema"))
+  }
+
+  envir$enabledTabs <- c(envir$enabledTabs, "database", "cohort")
+
   envir$prettyTable1Specifications <- readr::read_csv(
-    file = "data/Table1SpecsLong.csv",
+    file = table1SpecPath,
     col_types = readr::cols(),
     guess_max = min(1e7),
     lazy = FALSE
@@ -342,13 +439,13 @@ initializeEnvironment <- function(dataSource,
     -301, -201
   )
 
-
-  envir$showAnnotation <- FALSE
-  if (envir$enableAnnotation &
-    "annotation" %in% envir$resultsTablesOnServer &
-    "annotation_link" %in% envir$resultsTablesOnServer &
-    "annotation_attributes" %in% envir$resultsTablesOnServer) {
+  if (envir$shinySettings$enableAnnotation &
+    "annotation" %in% envir$resultsTables &
+    "annotation_link" %in% envir$resultsTables &
+    "annotation_attributes" %in% envir$resultsTables) {
     envir$showAnnotation <- TRUE
+    envir$enableAnnotation <- TRUE
+    envir$enableAuthorization <- TRUE
     options("showDiagnosticsExplorerAnnotation" = TRUE)
   } else {
     envir$enableAnnotation <- FALSE
