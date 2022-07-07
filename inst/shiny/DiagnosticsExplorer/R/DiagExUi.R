@@ -346,6 +346,7 @@ dashboardUi <- function(databaseTable,
           infoId = "compareTemporalCharacterizationInfo"
         )
       },
+      shinydashboard::menuItem(text = "Report", tabName = "report"),
       shinydashboard::menuItem(text = "Meta data", tabName = "databaseInformation"),
       # Conditional dropdown boxes in the side bar ------------------------------------------------------
       uiControls(databaseTable,
@@ -514,6 +515,10 @@ dashboardUi <- function(databaseTable,
       }
     ),
     shinydashboard::tabItem(
+      tabName = "report",
+      reportModuleView(ns("reportModule")),
+    ),
+    shinydashboard::tabItem(
       tabName = "databaseInformation",
       databaseInformationView(ns("databaseInformation")),
     )
@@ -611,6 +616,8 @@ tabularUi <- function(databaseTable,
             shiny::tabPanel("Compare Temporal Characterization", compareCohortCharacterizationView(ns("compareTemporalCohortCharacterization")),
                             value = "compareTemporalCharacterization")
           },
+          shiny::tabPanel("Reports", reportModuleView(ns("reportModule")),
+                          value = "report"),
           shiny::tabPanel("Database Information", databaseInformationView(ns("databaseInformation")),
                           value = "databaseInformation"),
           type = "pills",

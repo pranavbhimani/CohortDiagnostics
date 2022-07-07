@@ -646,7 +646,7 @@ diagnosticsExplorerModule <- function(id = "DiagnosticsExplorer",
         output <-
           mappedConceptSet(
             dataSource = dataSource,
-            databaseIds =  as.character(databaseTable$databaseId),
+            databaseIds = as.character(databaseTable$databaseId),
             cohortId = targetCohortId()
           )
         if (!hasData(output)) {
@@ -843,6 +843,12 @@ diagnosticsExplorerModule <- function(id = "DiagnosticsExplorer",
                            selectedDatabaseIds = selectedDatabaseIds,
                            cohortTable = cohortTable)
     }
+
+    reportModule(id = "reportModule",
+                 dataSource = dataSource,
+                 cohortTable = cohortTable,
+                 databaseTable = databaseTable,
+                 enabledTabs = enabledTabs)
 
     databaseInformationModule(id = "databaseInformation",
                               dataSource = dataSource,

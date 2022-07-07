@@ -3,7 +3,7 @@
 #' Create protocol document from cohort diagnostics data.
 #' Select components from available data to include in report
 #' @param id        Namespace id for shiny module. Must match reportModule server
-reportModuleUi <- function(id) {
+reportModuleView <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
