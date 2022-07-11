@@ -8,6 +8,9 @@ Bug fixes:
 2. Fix for person_years for incidence rates being set to "BIGINT" - caused issues with insert on postgres.
 It is now a float.
 
+3. Removed primary key on incidence rate table in results model as null gender causes issues.
+Will be resolved in future version.
+
 CohortDiagnostics 3.0.2
 =======================
 

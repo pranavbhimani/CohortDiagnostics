@@ -329,8 +329,7 @@ CREATE TABLE @results_schema.@incidence_rate (
 			calendar_year VARCHAR(4),
 			incidence_rate FLOAT NOT NULL,
 			cohort_id BIGINT NOT NULL,
-			database_id VARCHAR NOT NULL,
-			PRIMARY KEY(gender, age_group, calendar_year, cohort_id, database_id)
+			database_id VARCHAR NOT NULL
 );
 
 --Table included_source_concept
