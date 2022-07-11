@@ -1,3 +1,13 @@
+CohortDiagnostics 3.0.3
+=======================
+
+Bug fixes:
+
+1. Fix for exported time_ids being null (causes upload error on postgres databases)
+
+2. Fix for person_years for incidence rates being set to "BIGINT" - caused issues with insert on postgres.
+It is now a float.
+
 CohortDiagnostics 3.0.2
 =======================
 
