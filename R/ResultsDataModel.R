@@ -95,7 +95,7 @@ checkFixColumnNames <-
         )
       )
     }
-    return(table)
+    return(table[,expectedNames])
   }
 
 checkAndFixDataTypes <-
